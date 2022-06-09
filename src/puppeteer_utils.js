@@ -1,5 +1,6 @@
 const puppeteer = require("puppeteer");
 const _ = require("highland");
+const axios = require('axios').default;
 const url = require("url");
 const mapStackTrace = require("sourcemapped-stacktrace-node").default;
 const path = require("path");
@@ -161,8 +162,15 @@ const crawl = async opt => {
   };
   process.on("unhandledRejection", onUnhandledRejection);
 
+  const backendURL = process.env.BACKEND_URL || "http://localhost:8080"
+  const sitesResponse = await axios.get(`${backendURL}/api/sites`)
+  const sites =  sitesResponse.data.map((site) => site.id);
+
   const queue = _();
-  let enqued = 0;
+  sites.forEach(id => {
+    queue.write(`${basePath}/sites/${id}`);
+  });
+  let enqued = sites.length;
   let processed = 0;
   // use Set instead
   const uniqueUrls = new Set();
@@ -210,6 +218,11 @@ const crawl = async opt => {
     const route = pageUrl.replace(basePath, "");
 
     let skipExistingFile = false;
+    
+    // Don't pre-render pages of the form /site/:siteId/* 
+    if (/\/sites\/[0-9]+\/.*/.test(route)) {
+      skipExistingFile = true;
+    }
     const routePath = route.replace(/\//g, path.sep);
     const { ext } = path.parse(routePath);
     if (ext !== ".html" && ext !== "") {
