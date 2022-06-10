@@ -1,6 +1,5 @@
 const puppeteer = require("puppeteer");
 const _ = require("highland");
-const axios = require('axios').default;
 const url = require("url");
 const mapStackTrace = require("sourcemapped-stacktrace-node").default;
 const path = require("path");
@@ -162,15 +161,8 @@ const crawl = async opt => {
   };
   process.on("unhandledRejection", onUnhandledRejection);
 
-  const backendURL = process.env.BACKEND_URL || "http://localhost:8080"
-  const sitesResponse = await axios.get(`${backendURL}/api/sites`)
-  const sites =  sitesResponse.data.map((site) => site.id);
-
   const queue = _();
-  sites.forEach(id => {
-    queue.write(`${basePath}/sites/${id}`);
-  });
-  let enqued = sites.length;
+  let enqued = 0;
   let processed = 0;
   // use Set instead
   const uniqueUrls = new Set();
@@ -218,13 +210,11 @@ const crawl = async opt => {
     const route = pageUrl.replace(basePath, "");
 
     let skipExistingFile = false;
-    
-    // Don't pre-render pages of the form /site/:siteId/* 
-    if (/\/sites\/[0-9]+\/.*/.test(route)) {
-      skipExistingFile = true;
-    }
     const routePath = route.replace(/\//g, path.sep);
     const { ext } = path.parse(routePath);
+    if (options.exclude.some(x => RegExp(x).test(route))) {
+      skipExistingFile = true;
+    }
     if (ext !== ".html" && ext !== "") {
       const filePath = path.join(sourceDir, routePath);
       skipExistingFile = fs.existsSync(filePath);
@@ -243,7 +233,7 @@ const crawl = async opt => {
           options,
           route,
           onError: () => {
-            shuttingDown = true;
+            // shuttingDown = true;
           },
           sourcemapStore
         });
@@ -251,7 +241,7 @@ const crawl = async opt => {
         await page.setUserAgent(options.userAgent);
         const tracker = createTracker(page);
         try {
-          await page.goto(pageUrl, { waitUntil: "networkidle0" });
+          await page.goto(pageUrl, { waitUntil: "networkidle0", timeout: options.puppeteerTimeout });
         } catch (e) {
           e.message = augmentTimeoutError(e.message, tracker);
           throw e;
@@ -274,7 +264,7 @@ const crawl = async opt => {
       }
     } else {
       // this message creates a lot of noise
-      // console.log(`🚧  skipping (${processed + 1}/${enqued}) ${route}`);
+      console.log(`🚧  skipping (${processed + 1}/${enqued}) ${route}`);
     }
     processed++;
     if (enqued === processed) {

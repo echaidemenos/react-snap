@@ -19,6 +19,7 @@ const defaultOptions = {
   destination: null,
   concurrency: 4,
   include: ["/"],
+  exclude: [],
   userAgent: "ReactSnap",
   // 4 params below will be refactored to one: `puppeteer: {}`
   // https://github.com/stereobooster/react-snap/issues/120
@@ -74,7 +75,9 @@ const defaultOptions = {
   //# another feature creep
   // tribute to Netflix Server Side Only React https://twitter.com/NetflixUIE/status/923374215041912833
   // but this will also remove code which registers service worker
-  removeScriptTags: false
+  removeScriptTags: false,
+  puppeteerTimeout: undefined,
+
 };
 
 /**
