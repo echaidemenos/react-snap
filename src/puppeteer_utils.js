@@ -234,6 +234,7 @@ const crawl = async opt => {
           route,
           onError: () => {
             // shuttingDown = true;
+            page.close();
           },
           sourcemapStore
         });
